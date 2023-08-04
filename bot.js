@@ -93,7 +93,7 @@ async function run() {
                 await u.sleep(1000);
             }
         }
-        while (blockInfos.length < BLOCKS_PER_CALL)
+        while (blockInfos.length === BLOCKS_PER_CALL)
 
         // wait
         await u.sleep(LOOP_ITNERVAL_MS);
