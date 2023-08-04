@@ -10,8 +10,8 @@ const p = require('path');
 // params
 const LOOP_ITNERVAL_MS = (process.env && process.env.LOOP_ITNERVAL_MS) ? parseInt(process.env.LOOP_ITNERVAL_MS) : 180000;
 const WORK_FILE_PATH = (process.env && process.env.WORK_FILE_PATH) ? parseInt(process.env.WORK_FILE_PATH) : '/tmp/lastBlockHeight';
-const INIT_BLOCK_HEIGHT = (process.env && process.env.INIT_BLOCK_HEIGHT) ? parseInt(process.env.INIT_BLOCK_HEIGHT) : '1061730';
-const BLOCKS_PER_CALL = (process.env && process.env.BLOCKS_PER_CALL) ? parseInt(process.env.BLOCKS_PER_CALL) : '50';
+const INIT_BLOCK_HEIGHT = (process.env && process.env.INIT_BLOCK_HEIGHT) ? parseInt(process.env.INIT_BLOCK_HEIGHT) : 1061730;
+const BLOCKS_PER_CALL = (process.env && process.env.BLOCKS_PER_CALL) ? parseInt(process.env.BLOCKS_PER_CALL) : 50;
 
 // run
 async function run() {
@@ -22,10 +22,11 @@ async function run() {
         if (!fs.existsSync(WORK_FILE_PATH)) { fs.writeFileSync(WORK_FILE_PATH, INIT_BLOCK_HEIGHT); }
         let lastBlockHeight = parseInt(fs.readFileSync(WORK_FILE_PATH));
         let offset = lastBlockHeight;
+        let blockInfos;
 
         do {
             // get blocks
-            let blockInfos = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks?limit=${BLOCKS_PER_CALL}&offset=${lastBlockHeight}&sortBy=height&sortDirection=asc`)).data.items;
+            blockInfos = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks?limit=${BLOCKS_PER_CALL}&offset=${lastBlockHeight}&sortBy=height&sortDirection=asc`)).data.items;
             for (let blockInfo of blockInfos) {
                 if (blockInfo.height <= lastBlockHeight) { 
     
@@ -84,14 +85,12 @@ async function run() {
                         }
                     }
                     console.log('  ');
-                }
-    
-                offset += BLOCKS_PER_CALL;
+                }                
                 fs.writeFileSync(WORK_FILE_PATH, blockInfo.height.toString());
-
                 // sleep 1s between calls
                 await u.sleep(1000);
             }
+            offset += BLOCKS_PER_CALL;
         }
         while (blockInfos.length === BLOCKS_PER_CALL)
 
