@@ -21,77 +21,77 @@ async function getOrderDetails(orderBox) {
 
         switch(ergoTreeTemplate) {
             case c.N2T_SWAP_SELL_TEMPLATE_ERG: //sell from pool perspective
-                orderType = 'swap buy'; //buy from user perspective
+                orderType = '🟢 || NEW BUY ORDER |'; //buy from user perspective
                 poolType = 'N2T';
                 feeType = 'erg';
                 break;
             case c.N2T_SWAP_SELL_TEMPLATE_SPF: //sell from pool perspective
-                orderType = 'swap buy'; //buy from user perspective
+                orderType = '🟢 || NEW BUY ORDER |'; //buy from user perspective
                 poolType = 'N2T';
                 feeType = 'spf';
                 break;
             case c.N2T_SWAP_BUY_TEMPLATE_ERG: //buy from pool perspective
-                orderType = 'swap sell' //sell from user perspective
+                orderType = '🔴 || NEW SELL ORDER |' //sell from user perspective
                 poolType = 'N2T';
                 feeType = 'erg';
                 break;
             case c.N2T_SWAP_BUY_TEMPLATE_SPF: //buy from pool perspective
-                orderType = 'swap sell' //sell from user perspective
+                orderType = '🔴 || NEW SELL ORDER |' //sell from user perspective
                 poolType = 'N2T';
                 feeType = 'spf';
                 break;
             case c.T2T_SWAP_TEMPLATE_ERG:
-                orderType = 'swap'
+                orderType = 'Token Swap'
                 poolType = 'T2T';
                 feeType = 'erg';
                 break;
             case c.T2T_SWAP_TEMPLATE_SPF:
-                orderType = 'swap'
+                orderType = 'Token Swap'
                 poolType = 'T2T';
                 feeType = 'spf';
                 break;
             case c.N2T_DEPOSIT_TEMPLATE_ERG:
-                orderType = 'deposit'
+                orderType = '🟢 || 📥 LIQUIDITY DEPOSIT |'
                 poolType = 'N2T';
                 feeType = 'erg';
                 break;
             case c.N2T_REDEEM_TEMPLATE_ERG:
-                orderType = 'redeem'
+                orderType = '🔴 || 📤 LIQUIDITY REDEEM |'
                 poolType = 'N2T';
                 feeType = 'erg';
                 break;
             case c.N2T_DEPOSIT_TEMPLATE_SPF:
-                orderType = 'deposit'
+                orderType = '🟢 || 📥 LIQUIDITY DEPOSIT |'
                 poolType = 'N2T';
                 feeType = 'spf';
                 break;
             case c.N2T_REDEEM_TEMPLATE_SPF:
-                orderType = 'redeem'
+                orderType = '🔴 || 📤 LIQUIDITY REDEEM |'
                 poolType = 'N2T';
                 feeType = 'spf';
                 break;
             case c.T2T_DEPOSIT_TEMPLATE_ERG:
-                orderType = 'deposit'
+                orderType = '🟢 || 📥 LIQUIDITY DEPOSIT | '
                 poolType = 'T2T';
                 feeType = 'erg';
                 break;
             case c.T2T_REDEEM_TEMPLATE_ERG:
-                orderType = 'redeem'
+                orderType = '🔴 || 📤 LIQUIDITY REDEEM |'
                 poolType = 'T2T';
                 feeType = 'erg';
                 break;
             case c.T2T_DEPOSIT_TEMPLATE_SPF:
-                orderType = 'deposit'
+                orderType = '🟢 || 📥 LIQUIDITY DEPOSIT |'
                 poolType = 'T2T';
                 feeType = 'spf';
                 break;
             case c.T2T_REDEEM_TEMPLATE_SPF:
-                orderType = 'redeem'
+                orderType = '🔴 || 📤 LIQUIDITY REDEEM |'
                 poolType = 'T2T';
                 feeType = 'spf';
                 break;
             default:
-                orderType = 'custom'
+                orderType = '🤖 || CUSTOM BOT ?'
                 poolType = (orderBox.address === c.N2T_ADDRESS) ? 'N2T' : 'T2T';
                 feeType = 'unknown'
                 break;
