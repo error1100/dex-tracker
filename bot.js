@@ -12,6 +12,8 @@ const LOOP_ITNERVAL_MS = (process.env && process.env.LOOP_ITNERVAL_MS) ? parseIn
 const WORK_FILE_PATH = (process.env && process.env.WORK_FILE_PATH) ? parseInt(process.env.WORK_FILE_PATH) : '/tmp/lastBlockHeight';
 const INIT_BLOCK_HEIGHT = (process.env && process.env.INIT_BLOCK_HEIGHT) ? parseInt(process.env.INIT_BLOCK_HEIGHT) : 1061730;
 const BLOCKS_PER_CALL = (process.env && process.env.BLOCKS_PER_CALL) ? parseInt(process.env.BLOCKS_PER_CALL) : 50;
+const TELEGRAM_BOT_TOKEN = (process.env && process.env.TELEGRAM_BOT_TOKEN) ? parseInt(process.env.TELEGRAM_BOT_TOKEN) : '';
+const TELEGRAM_GROUP_ID = (process.env && process.env.TELEGRAM_GROUP_ID) ? parseInt(process.env.TELEGRAM_GROUP_ID) : '';
 
 // run
 async function run() {
