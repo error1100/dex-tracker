@@ -1,6 +1,7 @@
 const l = require('ergo-lib-wasm-nodejs');
 const p = require('path');
 const c = require('./constants.js');
+const a = require('axios');
 
 function sleep(ms) {
     return new Promise((resolve) => {
