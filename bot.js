@@ -21,7 +21,7 @@ async function run() {
     const minerFeeAddress = await l.MinerAddress.mainnet_fee_address();
     do {
         // get last block height
-        if (!fs.existsSync(WORK_FILE_PATH)) { fs.writeFileSync(WORK_FILE_PATH, INIT_BLOCK_HEIGHT); }
+        if (!fs.existsSync(WORK_FILE_PATH)) { fs.writeFileSync(WORK_FILE_PATH, INIT_BLOCK_HEIGHT.toString()); }
         let lastBlockHeight = parseInt(fs.readFileSync(WORK_FILE_PATH));
         let offset = lastBlockHeight;
         let blockInfos;
