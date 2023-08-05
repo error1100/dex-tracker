@@ -108,7 +108,7 @@ async function getOrderDetails(orderBox) {
 }
 
 async function sendMessageToGroup(message, botToken, groupId) {
-    const sendMessageEndpoint = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const sendMessageEndpoint = `https://api.telegram.org/bot${botToken}/sendMessage?parse_mode=HTML&disable_web_page_preview=true`;
 
     const params = new URLSearchParams({
         chat_id: groupId,

@@ -28,7 +28,7 @@ async function run() {
 
         do {
             // get blocks
-            blockInfos = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks?limit=${BLOCKS_PER_CALL}&offset=${lastBlockHeight}&sortBy=height&sortDirection=asc`)).data.items;
+            blockInfos = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks?limit=${BLOCKS_PER_CALL}&offset=${offset}&sortBy=height&sortDirection=asc`)).data.items;
             for (let blockInfo of blockInfos) {
                 if (blockInfo.height <= lastBlockHeight) { 
                     break; 
@@ -94,7 +94,7 @@ async function run() {
                     message += '\n';
 
                     // Send the message to the Telegram group
-                    u.sendMessageToGroup(message,TELEGRAM_BOT_TOKEN,TELEGRAM_GROUP_ID);
+                    await u.sendMessageToGroup(message,TELEGRAM_BOT_TOKEN,TELEGRAM_GROUP_ID);
                 }
                 // log last height to file           
                 fs.writeFileSync(WORK_FILE_PATH, blockInfo.height.toString());
