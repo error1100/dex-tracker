@@ -106,5 +106,26 @@ async function getOrderDetails(orderBox) {
     return { 'orderType': orderType, 'poolType':poolType, 'feeType': feeType }
 }
 
+async function sendMessageToGroup(message, botToken, groupId) {
+    const sendMessageEndpoint = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+    const params = new URLSearchParams({
+        chat_id: groupId,
+        text: message,
+    });
+
+    try {
+        const response = await a.post(sendMessageEndpoint, params);
+        if (response.data && response.data.ok) {
+            console.log('Message sent successfully!');
+        } else {
+            console.log('Failed to send the message.');
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
+}
+
 module.exports.sleep = sleep;
 module.exports.getOrderDetails = getOrderDetails;
+module.exports.sendMessageToGroup = sendMessageToGroup;

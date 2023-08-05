@@ -60,31 +60,40 @@ async function run() {
                         }
                     }
     
-                    console.log('%s %s TX %s', orderDetails.poolType, orderDetails.orderType, tx.id, blockInfo.height);
-                    console.log('User %s',rewardBox.address);
-                    
+                    // Construct the message
+                    let message = `${orderDetails.poolType} ${orderDetails.orderType} TX ${
+                        tx.id
+                    } Block Height: ${blockInfo.height}\nUser: ${rewardBox.address}\n`;
+
                     // in logic
-                    if (ergDiff < 0) { 
-                        console.log('%s %s', ergDiff, 'ERG');
-                    }                
+                    if (ergDiff < 0) {
+                        message += `${ergDiff} ERG\n`;
+                    }
                     for (let tokenOrder of orderBox.assets) {
-                        let tokenDiff  = tokenDiffs.filter(t => t.tokenId === tokenOrder.tokenId)[0];
+                        let tokenDiff = tokenDiffs.find(
+                            (t) => t.tokenId === tokenOrder.tokenId
+                        );
                         if (tokenDiff && tokenDiff.amount < 0) {
-                            console.log('%s %s', tokenDiff.amount, tokenDiff.name);
+                            message += `${tokenDiff.amount} ${tokenDiff.name}\n`;
                         }
                     }
-    
+
                     // out logic
-                    if (ergDiff > 0) { 
-                        console.log('+%s %s', ergDiff, 'ERG');
+                    if (ergDiff > 0) {
+                        message += `+${ergDiff} ERG\n`;
                     }
                     for (let tokenDiff of tokenDiffs) {
-                        let tokenOrder = (orderBox.assets.filter(t => t.tokenId === tokenDiff.tokenId))[0];
+                        let tokenOrder = orderBox.assets.find(
+                            (t) => t.tokenId === tokenDiff.tokenId
+                        );
                         if (!tokenOrder && tokenDiff.amount > 0) {
-                            console.log('+%s %s', tokenDiff.amount, tokenDiff.name);
+                            message += `+${tokenDiff.amount} ${tokenDiff.name}\n`;
                         }
                     }
-                    console.log('  ');
+                    message += '\n';
+
+                    // Send the message to the Telegram group
+                    u.sendMessageToGroup(message,TELEGRAM_BOT_TOKEN,TELEGRAM_GROUP_ID);
                 }                
                 fs.writeFileSync(WORK_FILE_PATH, blockInfo.height.toString());
                 // sleep 1s between calls
