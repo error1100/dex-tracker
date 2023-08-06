@@ -87,6 +87,10 @@ async function run() {
                             if (!tokenOrder && tokenDiff.amount > 0) {
                                 message += `+${tokenDiff.amount} <b>${tokenDiff.name}</b>\n`;
                             }
+                            // SPF buy when SPF fee exception
+                            if (orderDetails.feeType === 'spf' && tokenDiff.name === 'SPF' && tokenDiff.amount > 0) {
+                                message += `+${tokenDiff.amount} <b>${tokenDiff.name}</b>\n`;
+                            }
                         }
 
                         // Send the message to the Telegram group
