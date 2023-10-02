@@ -6,6 +6,7 @@ const a = require('axios');
 const ar = require('axios-retry');
 const fs = require('fs');
 const p = require('path');
+const { time } = require('console');
 
 // params
 const LOOP_ITNERVAL_MS = (process.env && process.env.LOOP_ITNERVAL_MS) ? parseInt(process.env.LOOP_ITNERVAL_MS) : 180000;
@@ -39,7 +40,7 @@ async function run() {
                     let blockTime = (new Date(blockInfo.timestamp)).toISOString().replace('T',' ').replace('Z','');
         
                     // get spectrum txs
-                    const txs = block.block.blockTransactions.filter(t => t.outputs.filter(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS).length > 0);
+                    const txs = block.block.blockTransactions.filter(t => t.outputs.filter(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS).length > 0 && t.inputs.length > 1);
                     for (let tx of txs) {
         
                         // get input boxes and details
@@ -47,9 +48,9 @@ async function run() {
                         const orderBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[1].id}`)).data;
                         const orderDetails = await u.getOrderDetails(orderBox);
         
-                        const poolBox = tx.outputs.filter(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS)[0];
-                        const minerBox = tx.outputs.filter(o => o.address === minerFeeAddress)[0];
-                        const rewardBox = tx.outputs[1];
+                        const poolBox = tx.outputs.find(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS);
+                        const minerBox = tx.outputs.find(o => o.address === minerFeeAddress);
+                        const rewardBox = (tx.outputs.length === 3) ? tx.outputs.find(o => o.address !== minerFeeAddress && o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS) : tx.outputs[1];
                         const operatorBox = (tx.outputs.length > 3) ? tx.outputs[2] : undefined;
         
                         // calc
