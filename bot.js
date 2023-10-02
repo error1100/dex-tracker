@@ -40,7 +40,7 @@ async function run() {
                     let blockTime = (new Date(blockInfo.timestamp)).toISOString().replace('T',' ').replace('Z','');
         
                     // get spectrum txs
-                    const txs = block.block.blockTransactions.filter(t => t.outputs.filter(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS).length > 0);
+                    const txs = block.block.blockTransactions.filter(t => t.inputs.some(i => i.address === c.N2T_ADDRESS || i.address === c.T2T_ADDRESS) && t.outputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS));
                     for (let tx of txs) {
                         console.log('tx.inputs[0]:', tx.inputs[0]);
                         console.log('tx.inputs[1]:', tx.inputs[1]);
@@ -79,7 +79,7 @@ async function run() {
                                 message += `${tokenDiff.amount} <b>${tokenDiff.name}</b>\n`;
                             }
                         }
-                                               
+
                         // out logic
                         if (ergDiff > 0) {
                             message += `+${ergDiff} <b>ERG</b>\n`;
