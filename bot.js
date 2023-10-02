@@ -40,17 +40,18 @@ async function run() {
                     let blockTime = (new Date(blockInfo.timestamp)).toISOString().replace('T',' ').replace('Z','');
         
                     // get spectrum txs
-                    const txs = block.block.blockTransactions.filter(t => t.outputs.filter(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS).length > 0 && t.inputs.length > 1);
+                    const txs = block.block.blockTransactions.filter(t => t.outputs.filter(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS).length > 0);
                     for (let tx of txs) {
-        
+                        console.log('tx.inputs[0]:', tx.inputs[0]);
+                        console.log('tx.inputs[1]:', tx.inputs[1]);
                         // get input boxes and details
                         const prevPoolBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[0].id}`)).data;
                         const orderBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[1].id}`)).data;
                         const orderDetails = await u.getOrderDetails(orderBox);
         
-                        const poolBox = tx.outputs.find(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS);
-                        const minerBox = tx.outputs.find(o => o.address === minerFeeAddress);
-                        const rewardBox = (tx.outputs.length === 3) ? tx.outputs.find(o => o.address !== minerFeeAddress && o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS) : tx.outputs[1];
+                        const poolBox = tx.outputs.filter(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS)[0];
+                        const minerBox = tx.outputs.filter(o => o.address === minerFeeAddress)[0];
+                        const rewardBox = tx.outputs[1];
                         const operatorBox = (tx.outputs.length > 3) ? tx.outputs[2] : undefined;
         
                         // calc
@@ -65,8 +66,8 @@ async function run() {
                             }
                         }
         
-                        // Construct the message
-                        let message = ` <b> ${orderDetails.orderType}</b>  <i><a href="https://ergexplorer.com/transactions/${tx.id}">Details</a></i>\n______________________________________\n`;
+                        // Construct the const txs = 
+                        let message = ` <b> ${orderDetails.orderType}</b>  <i><a href="https://ergexplorer.com/transactions/${tx.id}">Details</a></i>\n`;
 
                         // in logic
                         if (ergDiff < 0) {
@@ -78,7 +79,7 @@ async function run() {
                                 message += `${tokenDiff.amount} <b>${tokenDiff.name}</b>\n`;
                             }
                         }
-
+                                               
                         // out logic
                         if (ergDiff > 0) {
                             message += `+${ergDiff} <b>ERG</b>\n`;
