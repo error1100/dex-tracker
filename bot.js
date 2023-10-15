@@ -39,7 +39,7 @@ async function run() {
                     const block = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks/${blockInfo.id}`)).data;
                     let blockTime = (new Date(blockInfo.timestamp)).toISOString().replace('T',' ').replace('Z','');
         
-                    // get spectrum txs
+                    // process spectrum existing pools txs
                     const txs = block.block.blockTransactions.filter(t => t.inputs.some(i => i.address === c.N2T_ADDRESS || i.address === c.T2T_ADDRESS) && t.outputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS));
                     for (let tx of txs) {
                         console.log('tx.inputs[0]:', tx.inputs[0]);
@@ -99,6 +99,20 @@ async function run() {
                         u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_ID);
                         u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, SECOND_TELEGRAM_GROUP_ID);
                     }
+
+                    // process spectrum new pool txs
+                    const newTxs = block.block.blockTransactions.filter(t => !t.inputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS) && t.outputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS));
+                    for (let tx of newTxs) {
+                        const token = tx.outputs[0].assets.find(a => a.amount !== 1 && a.name && a.name.indexOf('_LP') === -1);
+                        let message = ` <b> LP creation</b>  <i><a href="https://ergexplorer.com/transactions/${tx.id}">Details</a></i>\n`;
+                        message += `+${tx.outputs[0].value * 1.0 / c.NANOERG} <b>ERG</b>\n`;
+                        message += `+${(token.decimals > 0) ? token.amount * 1.0 / token.decimals : token.amount} <b>${token.name}</b>\n`;
+
+                        // Send the message to the Telegram group
+                        u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_ID);
+                        u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, SECOND_TELEGRAM_GROUP_ID);
+                    }
+
                     // log last height to file           
                     fs.writeFileSync(WORK_FILE_PATH, blockInfo.height.toString());
 
