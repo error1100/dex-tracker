@@ -45,8 +45,10 @@ async function run() {
                         console.log('tx.inputs[0]:', tx.inputs[0]);
                         console.log('tx.inputs[1]:', tx.inputs[1]);
                         // get input boxes and details
-                        const prevPoolBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[0].id}`)).data;
-                        const orderBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[1].id}`)).data;
+                        const poolBoxIndex = tx.inputs.findIndex(i => i.address === c.N2T_ADDRESS || i.address === c.T2T_ADDRESS);
+                        const orderBoxIndex = (poolBoxIndex === 0) ? 1 : 0;
+                        const prevPoolBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[poolBoxIndex].id}`)).data;
+                        const orderBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[orderBoxIndex].id}`)).data;
                         const orderDetails = await u.getOrderDetails(orderBox);
         
                         const poolBox = tx.outputs.filter(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS)[0];
@@ -103,10 +105,17 @@ async function run() {
                     // process spectrum new pool txs
                     const newTxs = block.block.blockTransactions.filter(t => !t.inputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS) && t.outputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS));
                     for (let tx of newTxs) {
-                        const token = tx.outputs[0].assets.find(a => a.amount !== 1 && a.name && a.name.indexOf('_LP') === -1);
                         let message = ` <b> LP creation</b>  <i><a href="https://ergexplorer.com/transactions/${tx.id}">Details</a></i>\n`;
-                        message += `+${tx.outputs[0].value * 1.0 / c.NANOERG} <b>ERG</b>\n`;
-                        message += `+${(token.decimals > 0) ? token.amount * 1.0 / token.decimals : token.amount} <b>${token.name}</b>\n`;
+                        if (tx.outputs[0].address === c.N2T_ADDRESS) {
+                            const token = tx.outputs[0].assets.find(a => a.amount !== 1 && a.name && a.name.indexOf('_LP') === -1);
+                            message += `+${tx.outputs[0].value * 1.0 / c.NANOERG} <b>ERG</b>\n`;
+                            message += `+${(token.decimals > 0) ? token.amount * 1.0 / token.decimals : token.amount} <b>${token.name}</b>\n`;
+                        }
+                        if (tx.outputs[0].address === c.T2T_ADDRESS) {
+                            const tokens = tx.outputs[0].assets.filter(a => a.amount !== 1 && a.name && a.name.indexOf('_LP') === -1);
+                            message += `+${(tokens[0].decimals > 0) ? tokens[0].amount * 1.0 / tokens[0].decimals : tokens[0].amount} <b>${tokens[0].name}</b>\n`;
+                            message += `+${(tokens[1].decimals > 0) ? tokens[1].amount * 1.0 / tokens[1].decimals : tokens[1].amount} <b>${tokens[1].name}</b>\n`;
+                        }
 
                         // Send the message to the Telegram group
                         u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_ID);
