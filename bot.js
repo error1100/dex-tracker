@@ -14,7 +14,7 @@ const WORK_FILE_PATH = (process.env && process.env.WORK_FILE_PATH) ? process.env
 const INIT_BLOCK_HEIGHT = (process.env && process.env.INIT_BLOCK_HEIGHT) ? parseInt(process.env.INIT_BLOCK_HEIGHT) : 1061730;
 const BLOCKS_PER_CALL = (process.env && process.env.BLOCKS_PER_CALL) ? parseInt(process.env.BLOCKS_PER_CALL) : 50;
 const TELEGRAM_BOT_TOKEN = (process.env && process.env.TELEGRAM_BOT_TOKEN) ? process.env.TELEGRAM_BOT_TOKEN : '';
-const TELEGRAM_CHAT_ID = (process.env && process.env.TELEGRAM_GROUP_ID) ? process.env.TELEGRAM_GROUP_ID : '';
+const TELEGRAM_CHAT_ID = (process.env && process.env.TELEGRAM_CHAT_ID) ? process.env.TELEGRAM_CHAT_ID : '';
 const UI_FEE_ADDRESSES = [
     { name: 'ERGODEX', address: '9fdmUutc4DhcqXAAyQeBTsw49PjEM4vuW9riQCHtXAoGEw3R11d' }
     ,{ name: 'CROOKS', address: '9gpSJSBCSmti2xDqjSgf51N4z5QpUePJrF3cS8jto62ufhDrxLm' }
