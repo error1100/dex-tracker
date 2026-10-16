@@ -10,7 +10,7 @@ const { time } = require('console');
 
 // params
 const LOOP_ITNERVAL_MS = (process.env && process.env.LOOP_ITNERVAL_MS) ? parseInt(process.env.LOOP_ITNERVAL_MS) : 180000;
-const WORK_FILE_PATH = (process.env && process.env.WORK_FILE_PATH) ? process.env.WORK_FILE_PATH : '/tmp/lastBlockHeight';
+const WORK_FILE_PATH = (process.env && process.env.WORK_FILE_PATH) ? process.env.WORK_FILE_PATH : '/ergo/tmp/lastBlockHeight';
 const INIT_BLOCK_HEIGHT = (process.env && process.env.INIT_BLOCK_HEIGHT) ? parseInt(process.env.INIT_BLOCK_HEIGHT) : 1061730;
 const BLOCKS_PER_CALL = (process.env && process.env.BLOCKS_PER_CALL) ? parseInt(process.env.BLOCKS_PER_CALL) : 50;
 const TELEGRAM_BOT_TOKEN = (process.env && process.env.TELEGRAM_BOT_TOKEN) ? process.env.TELEGRAM_BOT_TOKEN : '';
@@ -24,18 +24,45 @@ const amountFormatOptions = {
     style: 'decimal'
 };
 
+const errorText = (e) => (e && e.isAxiosError) ? `${e.message} (${(e.config && e.config.method) ? e.config.method.toUpperCase() : ''} ${e.config ? e.config.url : ''})` : ((e && e.stack) ? e.stack : String(e));
+
+// network failures, rate limits and server errors may succeed later; everything else is a bad tx/block
+const isTransientError = (e) => Boolean(e && e.isAxiosError && (!e.response || e.response.status === 429 || e.response.status >= 500));
+
+function saveLastBlockHeight(height) {
+    // write+rename so an interrupted write never leaves an empty/truncated work file
+    const tmpPath = `${WORK_FILE_PATH}.tmp`;
+    fs.writeFileSync(tmpPath, height.toString());
+    fs.renameSync(tmpPath, WORK_FILE_PATH);
+}
+
+async function loadLastBlockHeight() {
+    if (!fs.existsSync(WORK_FILE_PATH)) {
+        saveLastBlockHeight(INIT_BLOCK_HEIGHT);
+        return INIT_BLOCK_HEIGHT;
+    }
+    const content = fs.readFileSync(WORK_FILE_PATH, 'utf8').trim();
+    if (/^\d+$/.test(content)) { return parseInt(content); }
+
+    // unknown resume point: continue from chain tip instead of replaying stale trades into the channel
+    const tipHeight = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks?limit=1&sortBy=height&sortDirection=desc`)).data.items[0].height;
+    console.warn('[%s] invalid work file %s content "%s", resuming from chain tip %s (%s)', new Date().toISOString(), WORK_FILE_PATH, content.substring(0, 32), tipHeight, p.basename(__filename));
+    saveLastBlockHeight(tipHeight);
+    return tipHeight;
+}
+
 // run
 async function run() {
     ar(a, { retries: 6, retryDelay: 20000 });
     const minerFeeAddress = l.MinerAddress.mainnet_fee_address();
     do {
-        // get last block height
-        if (!fs.existsSync(WORK_FILE_PATH)) { fs.writeFileSync(WORK_FILE_PATH, INIT_BLOCK_HEIGHT.toString()); }
-        let lastBlockHeight = parseInt(fs.readFileSync(WORK_FILE_PATH));
-        let offset = lastBlockHeight;
         let blockInfos;
 
         try {
+            // get last block height
+            const lastBlockHeight = await loadLastBlockHeight();
+            let offset = lastBlockHeight;
+
             do {
                 // get blocks
                 blockInfos = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks?limit=${BLOCKS_PER_CALL}&offset=${offset}&sortBy=height&sortDirection=asc`)).data.items;
@@ -43,94 +70,115 @@ async function run() {
                     if (blockInfo.height <= lastBlockHeight) { 
                         break; 
                     }
-                    const block = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks/${blockInfo.id}`)).data;
-                    // let blockTime = (new Date(blockInfo.timestamp)).toISOString().replace('T',' ').replace('Z','');
-        
-                    // process spectrum existing pools txs
-                    const txs = block.block.blockTransactions.filter(t => t.inputs.some(i => i.address === c.N2T_ADDRESS || i.address === c.T2T_ADDRESS) && t.outputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS));
-                    for (let tx of txs) {
-                        // get input boxes and details
-                        const poolBoxIndex = tx.inputs.findIndex(i => i.address === c.N2T_ADDRESS || i.address === c.T2T_ADDRESS);
-                        const orderBoxIndex = (poolBoxIndex === 0) ? 1 : 0;
-                        const prevPoolBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[poolBoxIndex].id}`)).data;
-                        const orderBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[orderBoxIndex].id}`)).data;
-                        const orderDetails = await u.getOrderDetails(orderBox);
-                        const orderUIFeeDetails = await u.getOrderUIFeeDetails(orderBox, orderDetails);
-                        orderDetails.dex = (orderUIFeeDetails.orderFeeAddress && UI_FEE_ADDRESSES.find(a => a.address === orderUIFeeDetails.orderFeeAddress)) ? UI_FEE_ADDRESSES.find(a => a.address === orderUIFeeDetails.orderFeeAddress).name : 'ERGODEX';
-        
-                        const poolBox = tx.outputs.find(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS);
-                        const minerBox = tx.outputs.find(o => o.address === minerFeeAddress);
-                        const rewardBox = (tx.outputs.length === 3) ? tx.outputs.find(o => o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS && o.address !== minerFeeAddress) : tx.outputs.find(o => (o.address === orderDetails.redeemerAddress) || (o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS && o.address !== minerFeeAddress));
-                        const operatorBox = (tx.outputs.length > 3) ? tx.outputs.find(o => o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS && o.address !== minerFeeAddress && o.address !== rewardBox.address) : undefined;
-        
-                        // calc
-                        let tokenDiffs = [];
-                        let ergDiff = (parseInt((BigInt(prevPoolBox.value) - BigInt(poolBox.value))) * 1.0 / c.NANOERG);
-                        for (let token of poolBox.assets) {
-                            const amount = token.amount
-                            const prevAmount = (prevPoolBox.assets.filter(t => t.tokenId === token.tokenId)[0]).amount;
-                            const diffAmount = (prevAmount - amount) / Math.pow(10, token.decimals);
-                            if (diffAmount !== 0) {
-                                tokenDiffs.push({ 'tokenId': token.tokenId, 'name': (token.name) ? token.name : token.tokenId, 'amount': diffAmount })
+                    try {
+                        const block = (await a.get(`${c.EXPLORER_API_URL}api/v1/blocks/${blockInfo.id}`)).data;
+                        // let blockTime = (new Date(blockInfo.timestamp)).toISOString().replace('T',' ').replace('Z','');
+
+                        // process spectrum existing pools txs
+                        const txs = block.block.blockTransactions.filter(t => t.inputs.some(i => i.address === c.N2T_ADDRESS || i.address === c.T2T_ADDRESS) && t.outputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS));
+                        for (let tx of txs) {
+                            try {
+                                // get input boxes and details
+                                const poolBoxIndex = tx.inputs.findIndex(i => i.address === c.N2T_ADDRESS || i.address === c.T2T_ADDRESS);
+                                const orderBoxIndex = (poolBoxIndex === 0) ? 1 : 0;
+                                const prevPoolBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[poolBoxIndex].id}`)).data;
+                                const orderBox = (await a.get(`${c.EXPLORER_API_URL}api/v1/boxes/${tx.inputs[orderBoxIndex].id}`)).data;
+                                const orderDetails = await u.getOrderDetails(orderBox);
+                                const orderUIFeeDetails = await u.getOrderUIFeeDetails(orderBox, orderDetails);
+                                orderDetails.dex = (orderUIFeeDetails.orderFeeAddress && UI_FEE_ADDRESSES.find(a => a.address === orderUIFeeDetails.orderFeeAddress)) ? UI_FEE_ADDRESSES.find(a => a.address === orderUIFeeDetails.orderFeeAddress).name : 'ERGODEX';
+
+                                const poolBox = tx.outputs.find(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS);
+                                const minerBox = tx.outputs.find(o => o.address === minerFeeAddress);
+                                const rewardBox = (tx.outputs.length === 3) ? tx.outputs.find(o => o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS && o.address !== minerFeeAddress) : tx.outputs.find(o => (o.address === orderDetails.redeemerAddress) || (o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS && o.address !== minerFeeAddress));
+                                const operatorBox = (tx.outputs.length > 3) ? tx.outputs.find(o => o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS && o.address !== minerFeeAddress && o.address !== rewardBox.address) : undefined;
+
+                                // calc
+                                let tokenDiffs = [];
+                                let ergDiff = (parseInt((BigInt(prevPoolBox.value) - BigInt(poolBox.value))) * 1.0 / c.NANOERG);
+                                for (let token of poolBox.assets) {
+                                    const amount = token.amount
+                                    const prevAmount = (prevPoolBox.assets.filter(t => t.tokenId === token.tokenId)[0]).amount;
+                                    const diffAmount = (prevAmount - amount) / Math.pow(10, token.decimals);
+                                    if (diffAmount !== 0) {
+                                        tokenDiffs.push({ 'tokenId': token.tokenId, 'name': (token.name) ? token.name : token.tokenId, 'amount': diffAmount })
+                                    }
+                                }
+
+                                // Construct the const txs = 
+                                let message = `${(orderDetails.orderType === 'CUSTOM') ? '🤖' : '🤑' } | <i><a href="https://explorer.ergoplatform.com/en/transactions/${tx.id}">${rewardBox.address.substring(0,4)}</a></i> | ${orderDetails.orderType} | ${blockInfo.height}\n`;
+
+                                // in logic
+                                if (ergDiff < 0) {
+                                    message += `${ergDiff.toLocaleString('en-us', amountFormatOptions)} ERG\n`;
+                                }
+                                for (let tokenOrder of orderBox.assets) {
+                                    let tokenDiff = tokenDiffs.find((t) => t.tokenId === tokenOrder.tokenId);
+                                    if (tokenDiff && tokenDiff.amount < 0) {
+                                        message += `${tokenDiff.amount.toLocaleString('en-us', amountFormatOptions)} ${tokenDiff.name}\n`;
+                                    }
+                                }
+
+                                // out logic
+                                if (ergDiff > 0) {
+                                    message += `+${ergDiff.toLocaleString('en-us',amountFormatOptions)} ERG\n`;
+                                }
+                                for (let tokenDiff of tokenDiffs) {
+                                    let tokenOrder = orderBox.assets.find((t) => t.tokenId === tokenDiff.tokenId);
+                                    if (!tokenOrder && tokenDiff.amount > 0) {
+                                        message += `+${tokenDiff.amount.toLocaleString('en-us', amountFormatOptions)} ${tokenDiff.name}\n`;
+                                    }
+                                    // SPF buy when SPF fee exception
+                                    if (orderDetails.feeType === 'spf' && tokenDiff.name === 'SPF' && tokenDiff.amount > 0) {
+                                        message += `+${tokenDiff.amount.toLocaleString('en-us', amountFormatOptions)} ${tokenDiff.name}\n`;
+                                    }
+                                }
+
+                                // console.log('message:', message);
+
+                                // Send the message to the Telegram group
+                                u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
+                            }
+                            catch(e) {
+                                if (isTransientError(e)) { throw e; }
+                                console.error('[%s] skipped tx %s in block %s: %s (%s)', new Date().toISOString(), tx.id, blockInfo.height, errorText(e), p.basename(__filename));
                             }
                         }
-        
-                        // Construct the const txs = 
-                        let message = `${(orderDetails.orderType === 'CUSTOM') ? '🤖' : '🤑' } | <i><a href="https://sigmaspace.io/en/transaction/${tx.id}">${rewardBox.address.substring(0,4)}</a></i> | ${orderDetails.dex} | ${blockInfo.height}\n`;
 
-                        // in logic
-                        if (ergDiff < 0) {
-                            message += `${ergDiff.toLocaleString('en-us', amountFormatOptions)} ERG\n`;
-                        }
-                        for (let tokenOrder of orderBox.assets) {
-                            let tokenDiff = tokenDiffs.find((t) => t.tokenId === tokenOrder.tokenId);
-                            if (tokenDiff && tokenDiff.amount < 0) {
-                                message += `${tokenDiff.amount.toLocaleString('en-us', amountFormatOptions)} ${tokenDiff.name}\n`;
+                        // process spectrum new pool txs
+                        const newTxs = block.block.blockTransactions.filter(t => !t.inputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS) && t.outputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS));
+                        for (let tx of newTxs) {
+                            try {
+                                const poolBox = tx.outputs.find(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS);
+                                const rewardBox = (tx.outputs.length === 3) ? tx.outputs.find(o => o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS && o.address !== minerFeeAddress) : tx.outputs.find(o => (o.address !== c.N2T_ADDRESS && o.address !== c.T2T_ADDRESS && o.address !== minerFeeAddress));
+                                let message = ` <b> LP CREATE</b>  <i><a href="https://sigmaspace.io/en/transaction/${tx.id}">${rewardBox.address.substring(0,4)}</a></i>\n`;
+                                if (tx.outputs[0].address === c.N2T_ADDRESS) {
+                                    const token = tx.outputs[0].assets.find(a => a.amount !== 1 && a.name && a.name.indexOf('_LP') === -1);
+                                    message += `+${tx.outputs[0].value * 1.0 / c.NANOERG} <b>ERG</b>\n`;
+                                    message += `+${(token.decimals > 0) ? (token.amount * 1.0 / token.decimals).toLocaleString('en-us', amountFormatOptions) : token.amount.toLocaleString('en-us', amountFormatOptions)} <b>${token.name}</b>\n`;
+                                }
+                                if (tx.outputs[0].address === c.T2T_ADDRESS) {
+                                    const tokens = tx.outputs[0].assets.filter(a => a.amount !== 1 && a.name && a.name.indexOf('_LP') === -1);
+                                    if (tokens[0]) message += `+${(tokens[0].decimals > 0) ? (tokens[0].amount * 1.0 / tokens[0].decimals).toLocaleString('en-us', amountFormatOptions) : tokens[0].amount.toLocaleString('en-us', amountFormatOptions)} <b>${tokens[0].name}</b>\n`;
+                                    if (tokens[1]) message += `+${(tokens[1].decimals > 0) ? (tokens[1].amount * 1.0 / tokens[1].decimals).toLocaleString('en-us', amountFormatOptions) : tokens[1].amount.toLocaleString('en-us', amountFormatOptions)} <b>${tokens[1].name}</b>\n`;
+                                }
+
+                                // Send the message to the Telegram group
+                                u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
+                            }
+                            catch(e) {
+                                if (isTransientError(e)) { throw e; }
+                                console.error('[%s] skipped new pool tx %s in block %s: %s (%s)', new Date().toISOString(), tx.id, blockInfo.height, errorText(e), p.basename(__filename));
                             }
                         }
-
-                        // out logic
-                        if (ergDiff > 0) {
-                            message += `+${ergDiff.toLocaleString('en-us',amountFormatOptions)} ERG\n`;
-                        }
-                        for (let tokenDiff of tokenDiffs) {
-                            let tokenOrder = orderBox.assets.find((t) => t.tokenId === tokenDiff.tokenId);
-                            if (!tokenOrder && tokenDiff.amount > 0) {
-                                message += `+${tokenDiff.amount.toLocaleString('en-us', amountFormatOptions)} ${tokenDiff.name}\n`;
-                            }
-                            // SPF buy when SPF fee exception
-                            if (orderDetails.feeType === 'spf' && tokenDiff.name === 'SPF' && tokenDiff.amount > 0) {
-                                message += `+${tokenDiff.amount.toLocaleString('en-us', amountFormatOptions)} ${tokenDiff.name}\n`;
-                            }
-                        }
-
-                        // console.log('message:', message);
-
-                        // Send the message to the Telegram group
-                        u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
                     }
-
-                    // process spectrum new pool txs
-                    const newTxs = block.block.blockTransactions.filter(t => !t.inputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS) && t.outputs.some(o => o.address === c.N2T_ADDRESS || o.address === c.T2T_ADDRESS));
-                    for (let tx of newTxs) {
-                        let message = ` <b> LP CREATE</b>  <i><a href="https://sigmaspace.io/en/transaction/${tx.id}">${rewardBox.address.substring(0,4)}</a></i>\n`;
-                        if (tx.outputs[0].address === c.N2T_ADDRESS) {
-                            const token = tx.outputs[0].assets.find(a => a.amount !== 1 && a.name && a.name.indexOf('_LP') === -1);
-                            message += `+${tx.outputs[0].value * 1.0 / c.NANOERG} <b>ERG</b>\n`;
-                            message += `+${(token.decimals > 0) ? (token.amount * 1.0 / token.decimals).toLocaleString('en-us', amountFormatOptions) : token.amount.toLocaleString('en-us', amountFormatOptions)} <b>${token.name}</b>\n`;
-                        }
-                        if (tx.outputs[0].address === c.T2T_ADDRESS) {
-                            const tokens = tx.outputs[0].assets.filter(a => a.amount !== 1 && a.name && a.name.indexOf('_LP') === -1);
-                            message += `+${(tokens[0].decimals > 0) ? (tokens[0].amount * 1.0 / tokens[0].decimals).toLocaleString('en-us', amountFormatOptions) : tokens[0].amount.toLocaleString('en-us', amountFormatOptions)} <b>${tokens[0].name}</b>\n`;
-                            message += `+${(tokens[1].decimals > 0) ? (tokens[1].amount * 1.0 / tokens[1].decimals).toLocaleString('en-us', amountFormatOptions) : tokens[1].amount.toLocaleString('en-us', amountFormatOptions)} <b>${tokens[1].name}</b>\n`;
-                        }
-
-                        // Send the message to the Telegram group
-                        u.sendMessageToGroup(message, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
+                    catch(e) {
+                        // transient failures retry this block on the next loop; anything else skips it
+                        if (isTransientError(e)) { throw e; }
+                        console.error('[%s] skipped block %s (%s): %s (%s)', new Date().toISOString(), blockInfo.height, blockInfo.id, errorText(e), p.basename(__filename));
                     }
 
                     // log last height to file           
-                    fs.writeFileSync(WORK_FILE_PATH, blockInfo.height.toString());
+                    saveLastBlockHeight(blockInfo.height);
 
                     console.log('[%s] processed block %s (%s)', new Date().toISOString(), blockInfo.height.toString(), p.basename(__filename));
 
@@ -142,7 +190,7 @@ async function run() {
             while (blockInfos.length === BLOCKS_PER_CALL)
         }
         catch(e) {
-            console.trace('[%s] processing failed: %s (%s)', new Date().toISOString(), e, p.basename(__filename))
+            console.error('[%s] processing failed: %s (%s)', new Date().toISOString(), errorText(e), p.basename(__filename))
         }
 
         // wait

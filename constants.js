@@ -1,5 +1,5 @@
 const EXPLORER_API_URL = "https://api.ergoplatform.com/";
-const NODE_API_URL = "https://ergo-node.zoomout.io/"
+const NODE_API_URL = "https://node.ergo.eutxo.de/"
 
 const NANOERG = 1000000000;
 

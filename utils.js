@@ -22,25 +22,25 @@ async function getOrderDetails(orderBox) {
 
         switch(ergoTreeTemplate) {
             case c.N2T_SWAP_SELL_TEMPLATE_ERG: //sell from pool perspective
-                orderType = 'BUY ORDER'; //buy from user perspective
+                orderType = 'BUY'; //buy from user perspective
                 poolType = 'N2T';
                 feeType = 'erg';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(0).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.N2T_SWAP_SELL_TEMPLATE_SPF: //sell from pool perspective
-                orderType = 'BUY ORDER'; //buy from user perspective
+                orderType = 'BUY'; //buy from user perspective
                 poolType = 'N2T';
                 feeType = 'spf';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(14).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.N2T_SWAP_BUY_TEMPLATE_ERG: //buy from pool perspective
-                orderType = 'SELL ORDER' //sell from user perspective
+                orderType = 'SELL' //sell from user perspective
                 poolType = 'N2T';
                 feeType = 'erg';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(0).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.N2T_SWAP_BUY_TEMPLATE_SPF: //buy from pool perspective
-                orderType = 'SELL ORDER' //sell from user perspective
+                orderType = 'SELL' //sell from user perspective
                 poolType = 'N2T';
                 feeType = 'spf';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(12).sigma_serialize_bytes().subarray(2)).to_base58();
@@ -58,49 +58,49 @@ async function getOrderDetails(orderBox) {
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(19).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.N2T_DEPOSIT_TEMPLATE_ERG:
-                orderType = 'LIQUIDITY DEPOSIT'
+                orderType = 'LQ DEPOSIT'
                 poolType = 'N2T';
                 feeType = 'erg';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(0).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.N2T_REDEEM_TEMPLATE_ERG:
-                orderType = 'LIQUIDITY REDEEM'
+                orderType = 'LQ REDEEM'
                 poolType = 'N2T';
                 feeType = 'erg';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(0).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.N2T_DEPOSIT_TEMPLATE_SPF:
-                orderType = 'LIQUIDITY DEPOSIT'
+                orderType = 'LQ DEPOSIT'
                 poolType = 'N2T';
                 feeType = 'spf';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(13).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.N2T_REDEEM_TEMPLATE_SPF:
-                orderType = 'LIQUIDITY REDEEM'
+                orderType = 'LQ REDEEM'
                 poolType = 'N2T';
                 feeType = 'spf';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(12).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.T2T_DEPOSIT_TEMPLATE_ERG:
-                orderType = 'LIQUIDITY DEPOSIT'
+                orderType = 'LQ DEPOSIT'
                 poolType = 'T2T';
                 feeType = 'erg';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(0).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.T2T_REDEEM_TEMPLATE_ERG:
-                orderType = 'LIQUIDITY REDEEM'
+                orderType = 'LQ REDEEM'
                 poolType = 'T2T';
                 feeType = 'erg';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(0).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.T2T_DEPOSIT_TEMPLATE_SPF:
-                orderType = 'LIQUIDITY DEPOSIT'
+                orderType = 'LQ DEPOSIT'
                 poolType = 'T2T';
                 feeType = 'spf';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(14).sigma_serialize_bytes().subarray(2)).to_base58();
                 break;
             case c.T2T_REDEEM_TEMPLATE_SPF:
-                orderType = 'LIQUIDITY REDEEM'
+                orderType = 'LQ REDEEM'
                 poolType = 'T2T';
                 feeType = 'spf';
                 redeemerAddress = l.Address.p2pk_from_pk_bytes(ergoTree.get_constant(14).sigma_serialize_bytes().subarray(2)).to_base58();
